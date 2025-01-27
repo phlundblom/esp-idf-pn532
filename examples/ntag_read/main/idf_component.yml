@@ -1,4 +1,4 @@
 dependencies:
-  Garag/esp-idf-pn532:
+  garag/esp-idf-pn532:
     version: "*"
     override_path: '../../../'
