@@ -248,7 +248,7 @@ esp_err_t pn532_read_data(pn532_io_handle_t io_handle, uint8_t *buffer, uint8_t 
     return ESP_OK;
 }
 
-#ifdef CONFIG_ENABLE_IRQ_ISR
+#ifndef CONFIG_ENABLE_IRQ_ISR
 /**
  * Check if data is ready
  * @param io_handle PN532 io handle
