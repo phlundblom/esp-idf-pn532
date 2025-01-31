@@ -1,7 +1,7 @@
 /**
  * @file     pn532.h
  * @author   D. Braun
- * @license  BSD (see license.txt)
+ * @license  MIT (see license.txt)
  * This is a PN532 Driver for the ESP32 family and IDF 5.3 for NXP's PN532 NFC/13.56MHz RFID Transceiver.
  * This component is inspired the Adafruit library.
  */
