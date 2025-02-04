@@ -4,9 +4,12 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "esp_log.h"
+#include "esp_rom_sys.h"
 #include "pn532_driver.h"
 
 static const char TAG[] = "pn532_driver";
+
+//#define CONFIG_PN532DEBUG
 
 #ifndef CONFIG_ENABLE_IRQ_ISR
 static bool pn532_is_ready();
@@ -230,7 +233,7 @@ esp_err_t pn532_read_data(pn532_io_handle_t io_handle, uint8_t *buffer, uint8_t 
     bzero(local_buffer, sizeof(local_buffer));
 
     if (timeout == 0) {
-        timeout = INT32_MAX;
+        timeout = -1;
     }
 
     esp_err_t res = io_handle->pn532_read(io_handle, local_buffer, length, timeout);
@@ -264,11 +267,36 @@ bool pn532_is_ready(pn532_io_handle_t io_handle)
     return (x == 0);
 }
 #endif
+static esp_err_t pn532_poll_ready(pn532_io_handle_t io_handle, int32_t timeout)
+{
+    TickType_t start_ticks = xTaskGetTickCount();
+    TickType_t timeout_ticks = (timeout > 0) ? pdMS_TO_TICKS(timeout) : portMAX_DELAY;
+    TickType_t elapsed_ticks = 0;
+
+    esp_rom_delay_us(1000);
+
+    bool is_ready = false;
+    while (!is_ready && elapsed_ticks <= timeout_ticks)
+    {
+        is_ready = ESP_OK == io_handle->pn532_is_ready(io_handle);
+        if (!is_ready) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+            elapsed_ticks = xTaskGetTickCount() - start_ticks;
+        }
+    }
+
+    return is_ready ? ESP_OK : ESP_ERR_TIMEOUT;
+}
 
 esp_err_t pn532_wait_ready(pn532_io_handle_t io_handle, int32_t timeout)
 {
-    if (io_handle->irq == GPIO_NUM_NC)
-        return ESP_OK;
+    if (io_handle->irq == GPIO_NUM_NC) {
+        esp_err_t err = ESP_OK;
+        if (io_handle->pn532_is_ready != NULL) {
+            err = pn532_poll_ready(io_handle, timeout);
+        }
+        return err;
+    }
 
 #ifdef CONFIG_ENABLE_IRQ_ISR
     uint32_t io_num = 0;

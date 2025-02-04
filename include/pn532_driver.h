@@ -32,6 +32,7 @@ struct pn532_io_t {
     esp_err_t (*pn532_read)(pn532_io_handle_t io_handle, uint8_t *read_buffer, size_t read_size, int xfer_timeout_ms);
     esp_err_t (*pn532_write)(pn532_io_handle_t io_handle, const uint8_t *write_buffer, size_t write_size, int xfer_timeout_ms);
     esp_err_t (*pn532_init_extra)(pn532_io_handle_t io_handle);
+    esp_err_t (*pn532_is_ready)(pn532_io_handle_t io_handle);
 
     gpio_num_t reset;
     gpio_num_t irq;

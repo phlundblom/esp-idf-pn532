@@ -278,7 +278,7 @@ esp_err_t pn532_read(pn532_io_handle_t io_handle, uint8_t *read_buffer, size_t r
 
     pn532_hsu_driver_config *driver_config = (pn532_hsu_driver_config *)io_handle->driver_data;
     TickType_t start_ticks = xTaskGetTickCount();
-    TickType_t timeout_ticks = pdMS_TO_TICKS(xfer_timeout_ms) + 1; // add 1 to overcome truncation
+    TickType_t timeout_ticks = (xfer_timeout_ms > 0) ? pdMS_TO_TICKS(xfer_timeout_ms) + 1 : portMAX_DELAY;
 
     int rx_bytes = 0;
     TickType_t elapsed_ticks = 0;
