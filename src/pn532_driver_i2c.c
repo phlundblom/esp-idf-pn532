@@ -13,6 +13,7 @@ typedef struct {
     i2c_port_num_t i2c_port_number;
     i2c_master_bus_handle_t i2c_bus_handle;
     i2c_master_dev_handle_t i2c_dev_handle;
+    bool bus_created;
     uint8_t frame_buffer[256];
 } pn532_i2c_driver_config;
 
@@ -33,10 +34,8 @@ esp_err_t pn532_new_driver_i2c(gpio_num_t sda,
     if (io_handle == NULL)
         return ESP_ERR_INVALID_ARG;
 
-    if (scl == GPIO_NUM_NC
-        || sda == GPIO_NUM_NC
-        || i2c_port_number < 0) {
-
+    if (i2c_port_number < 0)
+    {
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -51,6 +50,7 @@ esp_err_t pn532_new_driver_i2c(gpio_num_t sda,
     dev_config->i2c_port_number = i2c_port_number;
     dev_config->scl = scl;
     dev_config->sda = sda;
+    dev_config->bus_created = false;
     io_handle->driver_data = dev_config;
 
     io_handle->pn532_init_io = pn532_init_io;
@@ -87,23 +87,36 @@ esp_err_t pn532_init_io(pn532_io_handle_t io_handle)
 
     pn532_i2c_driver_config *driver_config = (pn532_i2c_driver_config *)io_handle->driver_data;
 
-    if (driver_config->i2c_bus_handle != NULL) {
+    if (driver_config->i2c_bus_handle != NULL && driver_config->bus_created) {
         pn532_release_io(io_handle);
     }
 
-    i2c_master_bus_config_t conf = {
-            //Open the I2C Bus
-            .clk_source = I2C_CLK_SRC_DEFAULT,
-            .i2c_port = driver_config->i2c_port_number,
-            .sda_io_num = driver_config->sda,
-            .scl_io_num = driver_config->scl,
-            .glitch_ignore_cnt = 7,
-            .flags.enable_internal_pullup = true,
-    };
-    if (i2c_new_master_bus(&conf, &driver_config->i2c_bus_handle) != ESP_OK) {
-        ESP_LOGE(TAG, "i2c_new_master_bus() failed");
-        return ESP_FAIL;
+    driver_config->bus_created = false;
+    if (driver_config->scl != GPIO_NUM_NC && driver_config->sda != GPIO_NUM_NC) {
+        // create new master bus
+        i2c_master_bus_config_t conf = {
+                //Open the I2C Bus
+                .clk_source = I2C_CLK_SRC_DEFAULT,
+                .i2c_port = driver_config->i2c_port_number,
+                .sda_io_num = driver_config->sda,
+                .scl_io_num = driver_config->scl,
+                .glitch_ignore_cnt = 7,
+                .flags.enable_internal_pullup = true,
+        };
+        if (i2c_new_master_bus(&conf, &driver_config->i2c_bus_handle) != ESP_OK) {
+            ESP_LOGE(TAG, "i2c_new_master_bus() failed");
+            return ESP_FAIL;
+        }
+        driver_config->bus_created = true;
     }
+    else {
+        // try to get bus handle
+        if (i2c_master_get_bus_handle(driver_config->i2c_port_number, &driver_config->i2c_bus_handle) != ESP_OK) {
+            ESP_LOGE(TAG, "i2c_master_get_bus_handle() failed");
+            return ESP_FAIL;
+        }
+    }
+
     i2c_device_config_t dev_cfg;
     dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
     dev_cfg.device_address = PN532_I2C_RAW_ADDRESS; // 7-bit address without RW flag
@@ -133,8 +146,11 @@ void pn532_release_io(pn532_io_handle_t io_handle)
     }
 
     if (driver_config->i2c_bus_handle != NULL) {
-        ESP_LOGD(TAG, "delete i2c bus ...");
-        i2c_del_master_bus(driver_config->i2c_bus_handle);
+        if (driver_config->bus_created) {
+            ESP_LOGD(TAG, "delete i2c bus ...");
+            i2c_del_master_bus(driver_config->i2c_bus_handle);
+            driver_config->bus_created = false;
+        }
         driver_config->i2c_bus_handle = NULL;
     }
 }
