@@ -207,6 +207,17 @@ esp_err_t pn532_in_list_passive_target(pn532_io_handle_t io_handle);
 esp_err_t ntag2xx_get_model(pn532_io_handle_t io_handle, NTAG2XX_MODEL *model);
 
 /**
+ * Authenticate a page.
+ * @param io_handle PN532 io handle
+ * @param page page to authenticate
+ * @param key buffer containing the 6 byte key for authentication
+ * @param uid buffer containing the UID bytes
+ * @param uid_length length of the UID
+ * @return ESP_OK if successful
+ */
+esp_err_t ntag2xx_authenticate(pn532_io_handle_t io_handle, uint8_t page, uint8_t *key, uint8_t *uid, uint8_t uid_length);
+
+/**
  * Read a 4 byte page.
  * @param io_handle PN532 io handle
  * @param page page to read

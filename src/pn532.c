@@ -335,6 +335,23 @@ esp_err_t ntag2xx_get_model(pn532_io_handle_t io_handle, NTAG2XX_MODEL *model)
     return ESP_OK;
 }
 
+esp_err_t ntag2xx_authenticate(pn532_io_handle_t io_handle, uint8_t page, uint8_t *key, uint8_t *uid, uint8_t uid_length) {
+    pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
+    pn532_packetbuffer[1] = 1;
+    pn532_packetbuffer[2] = MIFARE_CMD_AUTH_A;
+    pn532_packetbuffer[3] = page;
+
+    memcpy(&pn532_packetbuffer[4], key, 6);
+    if (uid_length > 10) {
+        uid_length = 10;
+    }
+    memcpy(&pn532_packetbuffer[10], uid, uid_length);
+
+    esp_err_t err = pn532_send_command_wait_ack(io_handle, pn532_packetbuffer, 10 + uid_length, PN532_WRITE_TIMEOUT);
+
+    return err;
+}
+
 esp_err_t ntag2xx_read_page(pn532_io_handle_t io_handle, uint8_t page, uint8_t *buffer, size_t read_len)
 {
     // TAG Type       PAGES   USER START    USER STOP
